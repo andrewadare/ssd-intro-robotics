@@ -36,12 +36,6 @@ def update(xs, w, measurements, landmarks, R):
     return
 
 
-def resample_from_indices(particles, weights, indices):
-    particles[:] = particles[indices]
-    weights[:] = weights[indices]
-    weights.fill (1.0 / len(weights))
-
-
 def likelihood(vehicle, measurements, landmarks, R):
     assert len(measurements) == len(landmarks)
     prob = 1.0
