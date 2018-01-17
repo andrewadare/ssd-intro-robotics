@@ -72,11 +72,12 @@ def resample(particles, weights):
 
 def main():
     dt = 0.05  # time step - 20 Hz updates
-    n_steps = 1000
+    n_steps = 2000
     extents = (-100, 100)  # map boundaries (square map)
-    n_landmarks = 10
-    speed = 10.  # commanded speed in m/s (1 m/s = 2.237 mph)
-    N = 100  # number of particles
+    L = extents[1] - extents[0]
+    n_landmarks = 5
+    speed = 20.  # commanded speed in m/s (1 m/s = 2.237 mph)
+    N = 200  # number of particles
     u_noise = np.array([0.1*speed, 0.001])  # speed noise, steering noise
     t_pred, t_up, t_resample = 0., 0., 0.
 
@@ -95,8 +96,8 @@ def main():
     R = np.diag([vehicle.range_sigma, vehicle.bearing_sigma])
 
     for _ in range(N):
-        pose = 0.1*(extents[1]-extents[0])*np.random.randn(3) + starting_pose
-        v = Vehicle(wheelbase=0.7, center_of_mass=0.35, initial_state=pose)
+        x0 = np.array([0.1*L, 0.1*L, 0.01])*np.random.randn(3) + starting_pose
+        v = Vehicle(wheelbase=0.7, center_of_mass=0.35, initial_state=x0)
         particles.append(v)
     assert len(particles) == weights.shape[0]  # debug
 
@@ -121,7 +122,7 @@ def main():
             # Add Gaussian noise to predicted states in addition to the control
             # noise. # Empirically, this helps to mitigate sample
             # impoverishment.
-            particles[j].x += np.array([0.1, 0.1, 0.001])*np.random.randn(3)
+            particles[j].x += np.array([1, 1, 0.01])*np.random.randn(3)
         t_pred += time() - start
 
         # update
