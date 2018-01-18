@@ -12,7 +12,6 @@ from collections import deque
 import numpy as np
 import scipy
 from scipy.stats import multivariate_normal as mvn
-from copy import deepcopy
 
 from ssd_robotics import \
     Vehicle, draw, mpi_to_pi, in2pi, sample_x_using_odometry
