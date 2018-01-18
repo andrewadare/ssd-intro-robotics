@@ -80,15 +80,15 @@ def draw(x,
          observations=None,
          particles=None,
          weights=None,
-         save=False):
+         fig=None):
     """Draw vehicle state x = [x, y, theta] on the map."""
     xmin, xmax = x_extents
     ymin, ymax = y_extents
     tick_spacing = (xmax - xmin)/20
 
-    if save:
+    if fig is not None:
         print('saving', draw.i)
-        gr.beginprint('pf{}.pdf'.format(draw.i))
+        gr.beginprint('{}_{}.pdf'.format(fig, draw.i))
 
     init_plot_window(xmin, xmax, ymin, ymax)
     draw_vehicle(x)
@@ -106,7 +106,7 @@ def draw(x,
     draw_axes(tick_spacing, xmin, ymin)
 
     gr.updatews()
-    if save:
+    if fig is not None:
         gr.endprint()
     draw.i += 1
     return
