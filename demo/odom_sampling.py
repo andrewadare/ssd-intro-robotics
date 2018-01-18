@@ -50,7 +50,10 @@ def main():
                          np.random.uniform(0, 2*np.pi)
                          ])])
 
+    # Note that this u kwarg is unrelated to our odometry vector! Sorry for
+    # the confusion, just following the PR textbook!
     vehicle.move(u=np.array([speed, 0]), dt=dt, extents=extents)
+
     u.append(vehicle.x - starting_pose + u[-1])
     u[-1][2] = in2pi(u[-1][2])
 
