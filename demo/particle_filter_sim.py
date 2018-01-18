@@ -7,13 +7,14 @@ Jan 2018
 """
 
 from time import time, sleep
+from collections import deque
 
 import numpy as np
 import scipy
 from scipy.stats import multivariate_normal as mvn
-from copy import deepcopy
 
-from ssd_robotics import Vehicle, draw, mpi_to_pi
+from ssd_robotics import \
+    Vehicle, draw, mpi_to_pi, in2pi, sample_x_using_odometry
 
 
 def update(xs, w, measurements, landmarks, R):
@@ -29,20 +30,30 @@ def update(xs, w, measurements, landmarks, R):
         r = np.linalg.norm(deltas, axis=1)
         b = mpi_to_pi(np.arctan2(deltas[:, 1], deltas[:, 0]) - xs[:, 2])
 
+        # This broadcasts evaluation over N gaussians, each with a different
+        # mean at r[j], at the value z[0].
         w *= scipy.stats.norm(r, R[0, 0]).pdf(z[0])
+        # same thing but for bearing measurements
         w *= scipy.stats.norm(b, R[1, 1]).pdf(z[1])
+
+        # This is a failed attempt to sample from a multivariate normal using
+        # broadcasting as above.
+        # mu = np.vstack([r, b])
+        # w *= mvn(mu, R).pdf(z)
+
     w += 1.e-300  # avoid round-off to zero
     w /= sum(w)  # normalize
     return
 
 
-def likelihood(vehicle, measurements, landmarks, R):
+def likelihood(x, measurements, landmarks, R):
+    """Currently unused"""
     assert len(measurements) == len(landmarks)
     prob = 1.0
     for lm, z in zip(landmarks, measurements):
-        deltas = lm - vehicle.x[:2]  # dx, dy
+        deltas = lm - x[:2]  # dx, dy
         r = np.linalg.norm(deltas)
-        b = mpi_to_pi(np.arctan2(deltas[1], deltas[0]) - vehicle.x[2])
+        b = mpi_to_pi(np.arctan2(deltas[1], deltas[0]) - x[2])
         prob *= mvn.pdf(z, mean=np.array([r, b]), cov=R)
     return prob
 
@@ -65,21 +76,20 @@ def resample(particles, weights):
         while weights[index] < beta:
             beta -= weights[index]
             index = (index + 1) % N
-        resampled.append(deepcopy(particles[index]))
+        resampled.append(particles[index].copy())
 
     return resampled
 
 
 def main():
     dt = 0.05  # time step - 20 Hz updates
-    n_steps = 2000
+    n_steps = 1000
     extents = (-100, 100)  # map boundaries (square map)
     L = extents[1] - extents[0]
     n_landmarks = 5
     speed = 20.  # commanded speed in m/s (1 m/s = 2.237 mph)
-    N = 200  # number of particles
+    N = 500  # number of particles
     u_noise = np.array([0.1*speed, 0.001])  # speed noise, steering noise
-    t_pred, t_up, t_resample = 0., 0., 0.
 
     # Start in the middle, pointed in a random direction.
     starting_pose = np.array([0, 0, np.random.uniform(0, 2*np.pi)])
@@ -95,11 +105,23 @@ def main():
     weights = np.full(shape=(N,), fill_value=1/N)
     R = np.diag([vehicle.range_sigma, vehicle.bearing_sigma])
 
-    for _ in range(N):
+    # Use control input vector to store odometry info. u_odom is a list of N
+    # queue structures. There will be two states in each entry: x_{t-1} and
+    # x_t. Each is a state in the local frame of the vehicle (x_bar, y_bar,
+    # theta_bar). The starting point is taken to be known; from there, we can
+    # only measure changes.
+    u_odom = [deque([starting_pose.copy()]) for _ in range(N)]
+
+    # Advance the vehicle one step so we can get an odometry measurement.
+    vehicle.move(u=np.array([speed, 0]), dt=dt, extents=extents)
+    for j in range(N):
+        xbar = vehicle.x - starting_pose + u_odom[j][-1]
+        xbar[2] = in2pi(xbar[2])
+        u_odom[j].append(xbar)
+
+        # Initialize particle distribution
         x0 = np.array([0.1*L, 0.1*L, 0.01])*np.random.randn(3) + starting_pose
-        v = Vehicle(wheelbase=0.7, center_of_mass=0.35, initial_state=x0)
-        particles.append(v)
-    assert len(particles) == weights.shape[0]  # debug
+        particles.append(x0)
 
     # Add landmarks to the map at random.
     landmarks = np.random.uniform(*extents, size=(n_landmarks, 2))
@@ -110,52 +132,50 @@ def main():
         u = np.array([speed, steer_angle])
 
         # Advance the ground-truth pose
+        x_prev = vehicle.x.copy()  # Previous global state
         vehicle.move(u=u, u_noise=u_noise, dt=dt, extents=extents)
 
         z, in_range = vehicle.observe(landmarks)
 
         # predict
-        start = time()
-        for j, p in enumerate(particles):
-            particles[j].move(u=u, u_noise=u_noise, dt=dt, extents=extents)
+        for j in range(N):
+            u_odom[j].popleft()
 
-            # Add Gaussian noise to predicted states in addition to the control
-            # noise. # Empirically, this helps to mitigate sample
-            # impoverishment.
-            particles[j].x += np.array([1, 1, 0.01])*np.random.randn(3)
-        t_pred += time() - start
+            # Simulate a state \bar{x}_t measured by odometry.
+            xbar = vehicle.x - x_prev + u_odom[j][-1]
+            xbar[2] = in2pi(xbar[2])
+            u_odom[j].append(xbar)
 
-        # update
-        start = time()
-        if len(z) > 0:
-            update(np.array([p.x for p in particles]),
-                   weights, z, landmarks[in_range], R)
-            # for j, p in enumerate(particles):
-            #     weights[j] = likelihood(p, z, landmarks[in_range], R)
-        t_up += time() - start
+            # Update particle position with a new prediction.
+            particles[j] = sample_x_using_odometry(
+                particles[j], u_odom[j],
+                # variances=10*np.array([1e-5, 1e-5, 1e-2, 1e-3]),
+                variances=np.array([1e-4, 1e-4, 1e-1, 1e-2]),
+                extents=extents)
 
-        # resample
-        start = time()
-        if n_effective(weights) < N/2:
-            particles = resample(particles, weights)
-        t_resample += time() - start
+        if len(z) > 0 or i % 10 == 0:
+            # update particle weights
+            update(np.array(particles), weights, z, landmarks[in_range], R)
+
+            # resample
+            if n_effective(weights) < N/2:
+                particles = resample(particles, weights)
 
         vehicle.t = time()
         if start + dt > vehicle.t:
             sleep(start + dt - vehicle.t)
 
-        # save = True if i % 100 == 0 else False
-        save = False
+        # pdf = 'pf-sim' if i < 10 else None
+        pdf = None
         draw(vehicle.x,
              landmarks=landmarks,
              observations=z,
              x_extents=extents,
              y_extents=extents,
-             particles=[p.x for p in particles],
+             particles=particles,
              weights=weights,
-             save=save
+             fig=pdf
              )
-    print(t_pred, t_up, t_resample)
 
 
 if __name__ == '__main__':
