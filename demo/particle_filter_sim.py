@@ -30,20 +30,30 @@ def update(xs, w, measurements, landmarks, R):
         r = np.linalg.norm(deltas, axis=1)
         b = mpi_to_pi(np.arctan2(deltas[:, 1], deltas[:, 0]) - xs[:, 2])
 
+        # This broadcasts evaluation over N gaussians, each with a different
+        # mean at r[j], at the value z[0].
         w *= scipy.stats.norm(r, R[0, 0]).pdf(z[0])
+        # same thing but for bearing measurements
         w *= scipy.stats.norm(b, R[1, 1]).pdf(z[1])
+
+        # This is a failed attempt to sample from a multivariate normal using
+        # broadcasting as above.
+        # mu = np.vstack([r, b])
+        # w *= mvn(mu, R).pdf(z)
+
     w += 1.e-300  # avoid round-off to zero
     w /= sum(w)  # normalize
     return
 
 
-def likelihood(vehicle, measurements, landmarks, R):
+def likelihood(x, measurements, landmarks, R):
+    """Currently unused"""
     assert len(measurements) == len(landmarks)
     prob = 1.0
     for lm, z in zip(landmarks, measurements):
-        deltas = lm - vehicle.x[:2]  # dx, dy
+        deltas = lm - x[:2]  # dx, dy
         r = np.linalg.norm(deltas)
-        b = mpi_to_pi(np.arctan2(deltas[1], deltas[0]) - vehicle.x[2])
+        b = mpi_to_pi(np.arctan2(deltas[1], deltas[0]) - x[2])
         prob *= mvn.pdf(z, mean=np.array([r, b]), cov=R)
     return prob
 
