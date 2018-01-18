@@ -3,6 +3,8 @@ from setuptools import setup, find_packages
 import json
 import os
 import re
+#from distutils.core import setup
+from setuptools import setup
 
 # Read json package info file to single-source the
 # metadata, url, author, etc.  The version is
@@ -35,5 +37,5 @@ setup(
     author=_info['author'],
     author_email=_info['email'],
     description=_info['description'],
-    install_requires=['filterpy', 'gr', 'numpy', 'scipy'],
+    install_requires=['wheel', 'setuptools', 'filterpy', 'gr', 'numpy', 'scipy'],
 )
