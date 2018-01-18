@@ -8,6 +8,7 @@ def mean_angle(angles):
 
 
 def mpi_to_pi(phi):
+    """Ensure that phi resides within [-pi, pi]"""
     phi %= 2*np.pi
     if isinstance(phi, np.ndarray):
         phi[phi > +np.pi] -= 2*np.pi
@@ -15,6 +16,11 @@ def mpi_to_pi(phi):
     elif phi > np.pi:
         phi -= 2 * np.pi
     return phi
+
+
+def in2pi(a):
+    """Ensure that a resides within [0, 2pi]"""
+    return (a + 2*np.pi) % (2*np.pi)
 
 
 def rk4(t, dt, x, deriv):
