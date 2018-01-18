@@ -18,12 +18,11 @@ def sample_x_using_odometry(x, u,
     if extents is not None:
         du = wrap(du, extents)
 
-    # dx, dy, d_theta = u[1] - u[0]
     dx, dy, d_theta = du
     a1, a2, a3, a4 = variances
 
-    # drot1 = in2pi(np.arctan2(dy, dx) - u[0][2])
-    drot1 = in2pi(np.arctan2(dy, dx) - theta_prev)
+    drot1 = in2pi(np.arctan2(dy, dx) - u[0][2])
+    # drot1 = in2pi(np.arctan2(dy, dx) - theta_prev)
     dtran = np.sqrt(dx**2 + dy**2)
     drot2 = in2pi(d_theta - drot1)
 
