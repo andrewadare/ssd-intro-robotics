@@ -153,11 +153,9 @@ def main():
                 variances=np.array([1e-4, 1e-4, 1e-1, 1e-2]),
                 extents=extents)
 
-        # update
-        if len(z) > 0:
-            # update(np.array([p.x for p in particles]),
-            update(np.array(particles),
-                   weights, z, landmarks[in_range], R)
+        if len(z) > 0 or i % 10 == 0:
+            # update particle weights
+            update(np.array(particles), weights, z, landmarks[in_range], R)
 
             # resample
             if n_effective(weights) < N/2:
