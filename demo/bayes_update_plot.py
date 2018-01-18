@@ -31,6 +31,6 @@ def plot_f():
     ax.set_ylabel('pdf')
 
     print('saving bayes-update.pdf')
-    fig.savefig('bayes-update.pdf')
+    fig.savefig('bayes-update.pdf', bbox_inches='tight')
 
 plot_f()
