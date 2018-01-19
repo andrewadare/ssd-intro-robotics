@@ -36,12 +36,12 @@ $ sudo apt-get install python3-setuptools
 
 4. Follow the installation instructions for installing python-gr described [here](https://software.opensuse.org/download.html?project=science:gr-framework&package=python-gr).
 
-5. Run these commands in a folder where you want to create a new Python virtual environment.
+5. Run these commands in a folder where you want to create a new Python virtual environment *IF* you didn't follow the opencv2 instructions.
 
 `python3 -m venv some_name
 source some_name/bin/activate`
 
-Note: You will have to use the source command everytime you open a terminal to run our code.  This is because your system-level Python site-packages folder will not have our dependencies.
+Note: You will have to use the source command everytime you open a terminal to run our code.  This is because your system-level Python site-packages folder will not have our dependencies. Unless you add this to your bash rc file.
 
 6. run `pip3 install -e .` in our ssd-intro-robotics folder to install our code dependencies.
 
