@@ -69,4 +69,4 @@ def covariance_ellipse(x, P, nsigma=3, nsegs=16):
     phi = np.linspace(0, 2*np.pi, nsegs + 1)
     ex = np.cos(phi)[np.newaxis, :]
     ey = np.sin(phi)[np.newaxis, :]
-    return nsigma*sqrtm(P) @ np.vstack([ex, ey]) + x[:2].reshape((2, 1))
+    return np.dot(nsigma*sqrtm(P), np.vstack([ex, ey])) + x[:2].reshape((2, 1))
