@@ -81,10 +81,12 @@ def main():
                                                    variances=v, extents=extents)
         sleep(dt)
 
+        pdf = 'motion_pred' if i < 10 else None
         draw(x_prev,
              x_extents=extents,
              y_extents=extents,
              particles=particles,
+             fig=pdf,
              )
 
 
