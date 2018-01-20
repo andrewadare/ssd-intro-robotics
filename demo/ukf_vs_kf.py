@@ -14,12 +14,10 @@ from filterpy.kalman import KalmanFilter
 
 
 def f(x, dt):
-    F = np.array([[1, dt, 0, 0],
-                  [0, 1, 0, 0],
-                  [0, 0, 1, dt],
-                  [0, 0, 0, 1]])
-    return np.dot(F, x)
-
+    return np.array([x[0] + x[1]*dt,
+                     x[1],
+                     x[2] + x[3]*dt,
+                     x[3]])
 
 def h(x):
     return np.array([x[0], x[2]])
