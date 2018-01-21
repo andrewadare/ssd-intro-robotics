@@ -2,8 +2,6 @@
 import numpy as np
 import gr  # Fast, simple plotting library
 
-from ssd_robotics import covariance_ellipse
-
 
 def init_plot_window(xmin, xmax, ymin, ymax):
     gr.clearws()
@@ -41,6 +39,8 @@ def draw_particles(xs, weights=None):
 
 
 def draw_landmarks(landmarks):
+    if len(landmarks) == 0:
+        return
     gr.setmarkertype(gr.MARKERTYPE_SOLID_CIRCLE)
     gr.setmarkersize(2)
     gr.setmarkercolorind(4)  # blue
