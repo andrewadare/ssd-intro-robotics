@@ -7,7 +7,6 @@ from ssd_robotics import covariance_ellipse
 
 def init_plot_window(xmin, xmax, ymin, ymax):
     gr.clearws()
-    # gr.setwsviewport(0.0, 0.25, 0.0, 0.25)  # Desktop window extents in meters
     gr.setwsviewport(0.0, 0.2, 0.0, 0.2)  # Desktop window extents in meters
     gr.setviewport(0.15, 0.95, 0.15, 0.95)
     gr.setwindow(xmin, xmax, ymin, ymax)
@@ -24,16 +23,6 @@ def draw_vehicle(x):
     xh = [x[0], x[0] + 5*np.cos(x[2])]
     yh = [x[1], x[1] + 5*np.sin(x[2])]
     gr.polyline(xh, yh)
-
-
-def draw_vehicle_ellipse(x, P):
-    ell = covariance_ellipse(x[0:2], P[0:2, 0:2], n_sigma=2)
-    gr.settransparency(0.8)
-    gr.setlinewidth(2)
-    # gr.setlinecolorind(983)
-    gr.polyline(ell[0, :], ell[1, :])
-    gr.setlinewidth(1)
-    gr.settransparency(1.0)
 
 
 def draw_particles(xs, weights=None):
@@ -102,11 +91,10 @@ def draw(x,
 
     if fig is not None:
         print('saving', draw.i)
-        gr.beginprint('{}_{}.pdf'.format(fig, draw.i))
+        gr.beginprint('{}_{:03d}.pdf'.format(fig, draw.i))
 
     init_plot_window(xmin, xmax, ymin, ymax)
     draw_vehicle(x)
-    # draw_vehicle_ellipse(x, np.eye(3))  # this works; not needed yet
 
     if landmarks is not None:
         draw_landmarks(landmarks)
@@ -119,7 +107,7 @@ def draw(x,
 
     if ellipses is not None:
         for i, ell in enumerate(ellipses):
-            draw_ellipse(ell, alpha=(0.3 - 0.1*i))
+            draw_ellipse(ell, alpha=(0.1))
 
     draw_axes(tick_spacing, xmin, ymin)
 

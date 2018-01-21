@@ -18,9 +18,8 @@ from time import time, sleep
 from copy import deepcopy
 
 import numpy as np
-from filterpy.kalman import unscented_transform, MerweScaledSigmaPoints
+from filterpy.kalman import MerweScaledSigmaPoints
 from filterpy.kalman import UnscentedKalmanFilter as UKF
-from filterpy.common import Q_discrete_white_noise
 
 from ssd_robotics import \
     Vehicle, draw, mpi_to_pi, wrap, mean_angle, covariance_ellipse
@@ -85,7 +84,7 @@ def create_ukf(vehicle, landmarks, P0, Q, dt, extents):
             x[z+1] = np.arctan2(sum_sin, sum_cos)
         return x
 
-    points = MerweScaledSigmaPoints(n=3, alpha=0.5, beta=2, kappa=0,
+    points = MerweScaledSigmaPoints(n=3, alpha=1e-3, beta=2, kappa=0,
                                     subtract=residual_x)
     ukf = UKF(dim_x=3,
               dim_z=2,
@@ -141,14 +140,25 @@ def main():
         start = vehicle.t
         steer_angle = np.radians(1.0*np.sin(i/100))
         u = np.array([speed, steer_angle])
-        vehicle.move(u=u, dt=dt, extents=extents)
-
         zs, in_range = vehicle.observe(landmarks)
 
         if i % ukf_step_size == 0:
-            ukf.predict(fx_args=(u, extents))
+
+            # Sigma point computation sometimes fails due to ill-conditioned
+            # covariance matrix. Wrap in try/except block until I figure out
+            # the root cause.
+            try:
+                ukf.predict(fx_args=(u, extents))
+            except np.linalg.linalg.LinAlgError:
+                print('prediction failed on step {} - retrying'.format(i))
+                ukf.x = vehicle.x.copy()
+                ukf.P = P0
+                ukf.predict(fx_args=(u, extents))
+
             for (z, lm) in zip(zs, landmarks[in_range]):
-                ukf.update(z, hx_args=(lm,))
+                    ukf.update(z, hx_args=(lm,))
+
+        vehicle.move(u=u, dt=dt, extents=extents)
 
         vehicle.t = time()
         if start + dt > vehicle.t:
@@ -156,13 +166,16 @@ def main():
 
         ellipses = [covariance_ellipse(ukf.x, ukf.P, nsigma=n, nsegs=32)
                     for n in [1, 2, 3]]
+
+        pdf = 'ukf-sim' if i < 500 and i % 5 == 0 else None
         draw(vehicle.x,
              landmarks=landmarks,
              observations=zs,
              x_extents=extents,
              y_extents=extents,
              particles=ukf.sigmas_f,
-             ellipses=ellipses
+             ellipses=ellipses,
+             fig=pdf
              )
 
 
