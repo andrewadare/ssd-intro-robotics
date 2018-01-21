@@ -7,7 +7,8 @@ from ssd_robotics import covariance_ellipse
 
 def init_plot_window(xmin, xmax, ymin, ymax):
     gr.clearws()
-    gr.setwsviewport(0.0, 0.25, 0.0, 0.25)  # Desktop window extents in meters
+    # gr.setwsviewport(0.0, 0.25, 0.0, 0.25)  # Desktop window extents in meters
+    gr.setwsviewport(0.0, 0.2, 0.0, 0.2)  # Desktop window extents in meters
     gr.setviewport(0.15, 0.95, 0.15, 0.95)
     gr.setwindow(xmin, xmax, ymin, ymax)
 
@@ -58,6 +59,7 @@ def draw_landmarks(landmarks):
 
 
 def draw_observation_lines(x, observations):
+    gr.setlinewidth(1)
     for (r, b) in observations:
         x1, x2 = x[0], x[0] + r*np.cos(b + x[2])
         y1, y2 = x[1], x[1] + r*np.sin(b + x[2])
@@ -65,12 +67,23 @@ def draw_observation_lines(x, observations):
 
 
 def draw_axes(tick_spacing, xmin, ymin):
+    gr.setlinewidth(1)
     gr.axes(tick_spacing, tick_spacing, xmin, ymin, 5, 5, -0.01)
     midway = 0.54
     gr.textext(midway, 0.02, 'x')
     gr.setcharup(-1, 0)  # Vertical, end-up
     gr.textext(0.05, midway, 'y')
     gr.setcharup(0, 1)  # Back to horizontal
+
+
+def draw_ellipse(ell, alpha=1.0, color=1):
+    gr.setfillintstyle(1)  # solid (default is no fill)
+    gr.setfillcolorind(color)
+    gr.settransparency(alpha)
+    gr.setlinewidth(2)
+    # gr.polyline(ell[0, :], ell[1, :])
+    gr.fillarea(ell[0, :], ell[1, :])
+    gr.settransparency(1.0)
 
 
 def draw(x,
@@ -80,6 +93,7 @@ def draw(x,
          observations=None,
          particles=None,
          weights=None,
+         ellipses=None,
          fig=None):
     """Draw vehicle state x = [x, y, theta] on the map."""
     xmin, xmax = x_extents
@@ -102,6 +116,10 @@ def draw(x,
 
     if particles is not None:
         draw_particles(particles, weights=weights)
+
+    if ellipses is not None:
+        for i, ell in enumerate(ellipses):
+            draw_ellipse(ell, alpha=(0.3 - 0.1*i))
 
     draw_axes(tick_spacing, xmin, ymin)
 

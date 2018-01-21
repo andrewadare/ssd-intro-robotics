@@ -67,6 +67,8 @@ def covariance_ellipse(x, P, nsigma=3, nsegs=16):
     """Compute 2D ellipse centered at (x[0], x[1]) using covariance matrix P.
     Approximated with nsegs line segments (nsegs + 1 points)."""
     phi = np.linspace(0, 2*np.pi, nsegs + 1)
-    ex = np.cos(phi)[np.newaxis, :]
+    ex = np.cos(phi)[np.newaxis, :]  # (1, 17)
     ey = np.sin(phi)[np.newaxis, :]
-    return np.dot(nsigma*sqrtm(P), np.vstack([ex, ey])) + x[:2].reshape((2, 1))
+
+    return np.dot(nsigma*sqrtm(P[:2, :2]), np.vstack([ex, ey])) +\
+        x[:2].reshape((2, 1))
