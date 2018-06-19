@@ -27,12 +27,14 @@ from ssd_robotics import \
 
 def create_ukf(vehicle, landmarks, P0, Q, dt, extents):
 
-    def f(x, dt, u, extents):
+    def f(x, dt, u=np.zeros(2), extents=extents):
         vehicle.x = x.copy()
+        print(u, dt)
         vehicle.move(u=u, dt=dt, extents=extents)
         return vehicle.x
 
-    def h(x, landmark):
+    def h(x, landmark=None):
+        assert landmark is not None
         hx = np.empty(2)
         lx, ly = landmark
         hx[0] = np.sqrt((lx - x[0])**2 + (ly - x[1])**2)
@@ -62,11 +64,11 @@ def create_ukf(vehicle, landmarks, P0, Q, dt, extents):
         if std > (extents[1] - extents[0])/4:
             x[:2] = sigmas[0, :2]
         else:
-            x[0] = np.sum(np.dot(sigmas[:, 0], w_m))
-            x[1] = np.sum(np.dot(sigmas[:, 1], w_m))
+            x[0] = np.dot(sigmas[:, 0], w_m)
+            x[1] = np.dot(sigmas[:, 1], w_m)
 
-        sum_sin = np.sum(np.dot(np.sin(sigmas[:, 2]), w_m))
-        sum_cos = np.sum(np.dot(np.cos(sigmas[:, 2]), w_m))
+        sum_sin = np.dot(np.sin(sigmas[:, 2]), w_m)
+        sum_cos = np.dot(np.cos(sigmas[:, 2]), w_m)
         x[2] = np.arctan2(sum_sin, sum_cos)
 
         wrap(x, extents)
@@ -77,10 +79,10 @@ def create_ukf(vehicle, landmarks, P0, Q, dt, extents):
         x = np.zeros(z_count)
 
         for z in range(0, z_count, 2):
-            sum_sin = np.sum(np.dot(np.sin(sigmas[:, z+1]), w_m))
-            sum_cos = np.sum(np.dot(np.cos(sigmas[:, z+1]), w_m))
+            sum_sin = np.dot(np.sin(sigmas[:, z+1]), w_m)
+            sum_cos = np.dot(np.cos(sigmas[:, z+1]), w_m)
 
-            x[z] = np.sum(np.dot(sigmas[:, z], w_m))
+            x[z] = np.dot(sigmas[:, z], w_m)
             x[z+1] = np.arctan2(sum_sin, sum_cos)
         return x
 
@@ -148,15 +150,15 @@ def main():
             # covariance matrix. Wrap in try/except block until I figure out
             # the root cause.
             try:
-                ukf.predict(fx_args=(u, extents))
+                ukf.predict(u=u, extents=extents)
             except np.linalg.linalg.LinAlgError:
                 print('prediction failed on step {} - retrying'.format(i))
                 ukf.x = vehicle.x.copy()
                 ukf.P = P0
-                ukf.predict(fx_args=(u, extents))
+                ukf.predict(u=u, extents=extents)
 
             for (z, lm) in zip(zs, landmarks[in_range]):
-                    ukf.update(z, hx_args=(lm,))
+                    ukf.update(z, landmark=lm)
 
         vehicle.move(u=u, dt=dt, extents=extents)
 
@@ -167,7 +169,8 @@ def main():
         ellipses = [covariance_ellipse(ukf.x, ukf.P, nsigma=n, nsegs=32)
                     for n in [1, 2, 3]]
 
-        pdf = 'ukf-sim' if i < 500 and i % 5 == 0 else None
+        # pdf = 'ukf-sim' if i < 500 and i % 5 == 0 else None
+        pdf = None
         draw(vehicle.x,
              landmarks=landmarks,
              observations=zs,
