@@ -23,7 +23,7 @@ def main():
     dt = 0.5  # time step
     n_steps = 2000
     extents = (-100, 100)  # map boundaries (square map)
-    speed = 20.  # commanded speed in m/s (1 m/s = 2.237 mph)
+    speed = 20.0  # commanded speed in m/s (1 m/s = 2.237 mph)
     N = 500
     particles = []
 
@@ -38,13 +38,15 @@ def main():
     v = [1e-3, 1e-5, 1e-3, 1e-3]  # compact blob
 
     # Start in the middle, pointed in a random direction.
-    starting_pose = np.array([0, 0, np.random.uniform(0, 2*np.pi)])
-    vehicle = Vehicle(wheelbase=0.7,
-                      center_of_mass=0.35,
-                      initial_state=starting_pose,
-                      range_noise=0.1,  # meters
-                      bearing_noise=0.01,  # rad
-                      sensor_range=50)
+    starting_pose = np.array([0, 0, np.random.uniform(0, 2 * np.pi)])
+    vehicle = Vehicle(
+        wheelbase=0.7,
+        center_of_mass=0.35,
+        initial_state=starting_pose,
+        range_noise=0.1,  # meters
+        bearing_noise=0.01,  # rad
+        sensor_range=50,
+    )
     vehicle.t = time()
 
     # Use control input vector to store odometry info. u_odom is a list of N
@@ -63,7 +65,7 @@ def main():
         particles.append(vehicle.x)
 
     for i in range(n_steps):
-        steer_angle = np.radians(1.0*np.sin(0.5*i/np.pi))
+        steer_angle = np.radians(1.0 * np.sin(0.5 * i / np.pi))
 
         x_prev = vehicle.x.copy()  # Previous global state
         vehicle.move(u=np.array([speed, steer_angle]), dt=dt, extents=extents)
@@ -77,18 +79,14 @@ def main():
             u_odom[j].append(xbar)
 
             # Update particle position with a new prediction.
-            particles[j] = sample_x_using_odometry(particles[j], u_odom[j],
-                                                   variances=v, extents=extents)
+            particles[j] = sample_x_using_odometry(
+                particles[j], u_odom[j], variances=v, extents=extents
+            )
         sleep(dt)
 
-        pdf = 'motion_pred' if i < 10 else None
-        draw(x_prev,
-             x_extents=extents,
-             y_extents=extents,
-             particles=particles,
-             fig=pdf,
-             )
+        pdf = "motion_pred" if i < 10 else None
+        draw(x_prev, x_extents=extents, y_extents=extents, particles=particles, fig=pdf)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

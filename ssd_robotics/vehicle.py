@@ -9,15 +9,16 @@ import numpy as np
 from ssd_robotics import rk4, mpi_to_pi, wrap
 
 
-class Vehicle():
-    def __init__(self,
-                 wheelbase=0.7,
-                 center_of_mass=0.35,
-                 initial_state=np.zeros(3),  # [x, y, theta]
-                 sensor_range=np.inf,
-                 range_noise=0.,
-                 bearing_noise=0.,
-                 ):
+class Vehicle:
+    def __init__(
+        self,
+        wheelbase=0.7,
+        center_of_mass=0.35,
+        initial_state=np.zeros(3),  # [x, y, theta]
+        sensor_range=np.inf,
+        range_noise=0.0,
+        bearing_noise=0.0,
+    ):
         """
         Parameters
         ----------
@@ -33,10 +34,10 @@ class Vehicle():
             Gaussian sigma parameters representing range and angle resolution
         """
         self.x = initial_state
-        self.u = [0., 0.]  # control inputs: speed and steering angle
+        self.u = [0.0, 0.0]  # control inputs: speed and steering angle
         self.a = center_of_mass
         self.b = wheelbase
-        self.t = 0.  # on-board time marker
+        self.t = 0.0  # on-board time marker
         self.range_sigma = range_noise
         self.bearing_sigma = bearing_noise
         self.sensor_range = sensor_range
@@ -48,10 +49,10 @@ class Vehicle():
         """
         x, y, theta = state
         v0, delta = self.u  # throttle and steering commands
-        alpha = np.arctan2(self.a*np.tan(delta), self.b)
-        xdot = v0*np.cos(alpha + theta)/np.cos(alpha)
-        ydot = v0*np.sin(alpha + theta)/np.cos(alpha)
-        tdot = v0/self.b * np.tan(delta)
+        alpha = np.arctan2(self.a * np.tan(delta), self.b)
+        xdot = v0 * np.cos(alpha + theta) / np.cos(alpha)
+        ydot = v0 * np.sin(alpha + theta) / np.cos(alpha)
+        tdot = v0 / self.b * np.tan(delta)
         return np.array([xdot, ydot, tdot])
 
     def move(self, u=np.zeros(2), u_noise=np.zeros(2), dt=0.1, extents=None):
@@ -69,7 +70,7 @@ class Vehicle():
         extents : tuple(float, float) (optional, default None)
             Boundaries of the square, periodic robot world.
         """
-        self.u = u + np.random.randn()*u_noise
+        self.u = u + np.random.randn() * u_noise
         self.x, self.t = rk4(self.t, dt, self.x, self.eqs_of_motion)
         if extents is not None:
             self.x = wrap(self.x, extents)
@@ -91,10 +92,12 @@ class Vehicle():
         n = landmarks.shape[0]
         d = landmarks - self.x[np.newaxis, :2]  # vehicle-to-landmark dx, dy
 
-        ranges = np.linalg.norm(d, axis=1) + \
-            self.range_sigma*np.random.randn(n)
-        bearings = np.arctan2(d[:, 1], d[:, 0]) - self.x[2] + \
-            self.bearing_sigma*np.random.randn(n)
+        ranges = np.linalg.norm(d, axis=1) + self.range_sigma * np.random.randn(n)
+        bearings = (
+            np.arctan2(d[:, 1], d[:, 0])
+            - self.x[2]
+            + self.bearing_sigma * np.random.randn(n)
+        )
 
         in_range = ranges < self.sensor_range
         ranges, bearings = ranges[in_range], mpi_to_pi(bearings[in_range])

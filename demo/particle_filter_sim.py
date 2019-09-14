@@ -13,8 +13,7 @@ import numpy as np
 import scipy
 from scipy.stats import multivariate_normal as mvn
 
-from ssd_robotics import \
-    Vehicle, draw, mpi_to_pi, in2pi, sample_x_using_odometry
+from ssd_robotics import Vehicle, draw, mpi_to_pi, in2pi, sample_x_using_odometry
 
 
 def update(xs, w, measurements, landmarks, R):
@@ -41,7 +40,7 @@ def update(xs, w, measurements, landmarks, R):
         # mu = np.vstack([r, b])
         # w *= mvn(mu, R).pdf(z)
 
-    w += 1.e-300  # avoid round-off to zero
+    w += 1.0e-300  # avoid round-off to zero
     w /= sum(w)  # normalize
     return
 
@@ -61,7 +60,7 @@ def likelihood(x, measurements, landmarks, R):
 def n_effective(weights):
     """Return the fraction of particles that have an influential weight."""
     # return np.size(weights)/np.sum(np.square(weights))
-    return 1/(np.sum(weights**2) + 1e-300)
+    return 1 / (np.sum(weights ** 2) + 1e-300)
 
 
 def resample(particles, weights):
@@ -69,7 +68,7 @@ def resample(particles, weights):
     N = len(particles)
     index = np.random.randint(N)
     beta = 0
-    betamax = 2*max(weights)
+    betamax = 2 * max(weights)
 
     for _ in range(N):
         beta += np.random.uniform(0, betamax)
@@ -87,22 +86,24 @@ def main():
     extents = (-100, 100)  # map boundaries (square map)
     L = extents[1] - extents[0]
     n_landmarks = 5
-    speed = 20.  # commanded speed in m/s (1 m/s = 2.237 mph)
+    speed = 20.0  # commanded speed in m/s (1 m/s = 2.237 mph)
     N = 500  # number of particles
-    u_noise = np.array([0.1*speed, 0.001])  # speed noise, steering noise
+    u_noise = np.array([0.1 * speed, 0.001])  # speed noise, steering noise
 
     # Start in the middle, pointed in a random direction.
-    starting_pose = np.array([0, 0, np.random.uniform(0, 2*np.pi)])
-    vehicle = Vehicle(wheelbase=0.7,
-                      center_of_mass=0.35,
-                      initial_state=starting_pose,
-                      range_noise=0.1,  # meters
-                      bearing_noise=0.01,  # rad
-                      sensor_range=50)
+    starting_pose = np.array([0, 0, np.random.uniform(0, 2 * np.pi)])
+    vehicle = Vehicle(
+        wheelbase=0.7,
+        center_of_mass=0.35,
+        initial_state=starting_pose,
+        range_noise=0.1,  # meters
+        bearing_noise=0.01,  # rad
+        sensor_range=50,
+    )
     vehicle.t = time()
 
     particles = []
-    weights = np.full(shape=(N,), fill_value=1/N)
+    weights = np.full(shape=(N,), fill_value=1 / N)
     R = np.diag([vehicle.range_sigma, vehicle.bearing_sigma])
 
     # Use control input vector to store odometry info. u_odom is a list of N
@@ -120,7 +121,7 @@ def main():
         u_odom[j].append(xbar)
 
         # Initialize particle distribution
-        x0 = np.array([0.1*L, 0.1*L, 0.01])*np.random.randn(3) + starting_pose
+        x0 = np.array([0.1 * L, 0.1 * L, 0.01]) * np.random.randn(3) + starting_pose
         particles.append(x0)
 
     # Add landmarks to the map at random.
@@ -128,7 +129,7 @@ def main():
 
     for i in range(n_steps):
         start = vehicle.t
-        steer_angle = np.radians(1.0*np.sin(i/100))
+        steer_angle = np.radians(1.0 * np.sin(i / 100))
         u = np.array([speed, steer_angle])
 
         # Advance the ground-truth pose
@@ -148,17 +149,19 @@ def main():
 
             # Update particle position with a new prediction.
             particles[j] = sample_x_using_odometry(
-                particles[j], u_odom[j],
+                particles[j],
+                u_odom[j],
                 # variances=10*np.array([1e-5, 1e-5, 1e-2, 1e-3]),
                 variances=np.array([1e-4, 1e-4, 1e-1, 1e-2]),
-                extents=extents)
+                extents=extents,
+            )
 
         if len(z) > 0 or i % 10 == 0:
             # update particle weights
             update(np.array(particles), weights, z, landmarks[in_range], R)
 
             # resample
-            if n_effective(weights) < N/2:
+            if n_effective(weights) < N / 2:
                 particles = resample(particles, weights)
 
         vehicle.t = time()
@@ -167,16 +170,17 @@ def main():
 
         # pdf = 'pf-sim' if i < 10 else None
         pdf = None
-        draw(vehicle.x,
-             landmarks=landmarks,
-             observations=z,
-             x_extents=extents,
-             y_extents=extents,
-             particles=particles,
-             weights=weights,
-             fig=pdf
-             )
+        draw(
+            vehicle.x,
+            landmarks=landmarks,
+            observations=z,
+            x_extents=extents,
+            y_extents=extents,
+            particles=particles,
+            weights=weights,
+            fig=pdf,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
