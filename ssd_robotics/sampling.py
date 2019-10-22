@@ -8,6 +8,10 @@ def sample_x_using_odometry(x, u, variances=[0.01, 0.01, 0.01, 0.01], extents=No
     """Sample from p(x_t | u_t, x_{t-1}) where u is not a control vector, but
     a measurement of the current and previous states in local coordinates:
                     u = [\bar{x}_{t-1}, \bar{x}_t]^T
+
+    Reference
+    ---------
+    Probabalistic Robotics by S. Thrun et al, table 5.6.
     """
     xt = np.empty(3)  # output vector: sampled global pose
     x_prev, y_prev, theta_prev = x  # global pose at time t-1
