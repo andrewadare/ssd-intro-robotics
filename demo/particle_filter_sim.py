@@ -8,53 +8,58 @@ Jan 2018
 
 from time import time, sleep
 from collections import deque
+from math import sqrt
 
 import numpy as np
-import scipy
-from scipy.stats import multivariate_normal as mvn
+from scipy.stats import norm as gauss1d
 
 from ssd_robotics import Vehicle, draw, mpi_to_pi, in2pi, sample_x_using_odometry
 
 
-def update(xs, w, measurements, landmarks, R):
+def update(particles, weights, measurements, landmarks, R):
+    """Modifies weights array in place.
+
+    Parameters
+    ----------
+    particles : (N, 3) ndarray
+        N particles with state (x, y, yaw)
+    weights : (N,) ndarray
+        Importance weights on particles
+    measurements : (nz, 2) ndarray
+        Array of (range, bearing) measurements
+    landmarks : (nz, 2) ndarray
+        Visible landmark (x, y) positions in global map coordinates
+    R : (2, 2) ndarray
+        Measurement noise covariance matrix
+    """
     assert len(measurements) == len(landmarks)
-    w.fill(1.0)
+    weights.fill(1.0)
 
     for lm, z in zip(landmarks, measurements):
 
         # dx, dy array - shape (N, 2)
-        deltas = lm - xs[:, :2]
+        deltas = lm - particles[:, :2]
 
-        # Range and bearing measurements - shapes (N,)
+        # Range and bearing predictions from particles and landmarks.
+        # Shapes are both (N,)
         r = np.linalg.norm(deltas, axis=1)
-        b = mpi_to_pi(np.arctan2(deltas[:, 1], deltas[:, 0]) - xs[:, 2])
+        b = mpi_to_pi(np.arctan2(deltas[:, 1], deltas[:, 0]) - particles[:, 2])
 
         # This broadcasts evaluation over N gaussians, each with a different
         # mean at r[j], at the value z[0].
-        w *= scipy.stats.norm(r, R[0, 0]).pdf(z[0])
+        weights *= gauss1d(r, sqrt(R[0, 0])).pdf(z[0])
         # same thing but for bearing measurements
-        w *= scipy.stats.norm(b, R[1, 1]).pdf(z[1])
+        weights *= gauss1d(b, sqrt(R[1, 1])).pdf(z[1])
 
         # This is a failed attempt to sample from a multivariate normal using
         # broadcasting as above.
+        # from scipy.stats import multivariate_normal as mvn
         # mu = np.vstack([r, b])
-        # w *= mvn(mu, R).pdf(z)
+        # weights *= mvn(mu, R).pdf(z)
 
-    w += 1.0e-300  # avoid round-off to zero
-    w /= sum(w)  # normalize
+    weights += 1.0e-300  # avoid round-off to zero
+    weights /= sum(weights)  # normalize
     return
-
-
-def likelihood(x, measurements, landmarks, R):
-    """Currently unused"""
-    assert len(measurements) == len(landmarks)
-    prob = 1.0
-    for lm, z in zip(landmarks, measurements):
-        deltas = lm - x[:2]  # dx, dy
-        r = np.linalg.norm(deltas)
-        b = mpi_to_pi(np.arctan2(deltas[1], deltas[0]) - x[2])
-        prob *= mvn.pdf(z, mean=np.array([r, b]), cov=R)
-    return prob
 
 
 def n_effective(weights):
@@ -151,8 +156,7 @@ def main():
             particles[j] = sample_x_using_odometry(
                 particles[j],
                 u_odom[j],
-                # variances=10*np.array([1e-5, 1e-5, 1e-2, 1e-3]),
-                variances=np.array([1e-4, 1e-4, 1e-1, 1e-2]),
+                variances=np.array([1e-6, 1e-6, 1e-4, 1e-4]),
                 extents=extents,
             )
 
